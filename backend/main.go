@@ -1,6 +1,15 @@
 package main
 
-import "github.com/kataras/iris/v12"
+import (
+	"context"
+	"github.com/kataras/iris/v12"
+	"github.com/kataras/iris/v12/mvc"
+	"github.com/opentracing/opentracing-go/log"
+	"seckill-product/backend/web/controllers"
+	"seckill-product/common"
+	"seckill-product/repositories"
+	"seckill-product/services"
+)
 
 func main() {
 	// 1. create iris instance
@@ -19,7 +28,21 @@ func main() {
 		ctx.ViewLayout("")
 		ctx.View("shared/error.html")
 	})
+	db, err := common.NewMysqlConn()
+	if err != nil {
+		log.Error(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// 5. register controller
+	productRepository := repositories.NewProductManager(
+		"product", db)
+	productService := services.NewProductService(productRepository)
+	productParty := app.Party("/product")
+	product := mvc.New(productParty)
+	product.Register(ctx, productService)
+	product.Handle(new(controllers.ProductController))
 
 	//6. launch service
 	app.Run(

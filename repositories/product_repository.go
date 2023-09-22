@@ -30,9 +30,9 @@ func NewProductManager(table string, db *sql.DB) IProduct {
 
 // database connection
 func (p *ProductManager) Conn() (err error) {
-	if p.mysqlConn == nill {
+	if p.mysqlConn == nil {
 		mysql, err := common.NewMysqlConn()
-		if err != nill {
+		if err != nil {
 			return err
 		}
 		p.mysqlConn = mysql
@@ -45,12 +45,12 @@ func (p *ProductManager) Conn() (err error) {
 
 // insert
 func (p *ProductManager) Insert(product *datamodels.Product) (productId int64, err error) {
-	if err = p.Conn(); err != nill {
+	if err = p.Conn(); err != nil {
 		return
 	}
 	sql := "INSERT product SET productName=?, productNum=?, productImage=?, productUrl=?"
 	stmt, errSql := p.mysqlConn.Prepare(sql)
-	if errSql != nill {
+	if errSql != nil {
 		return 0, errSql
 	}
 
@@ -63,7 +63,7 @@ func (p *ProductManager) Insert(product *datamodels.Product) (productId int64, e
 
 // delete
 func (p *ProductManager) Delete(productID int64) bool {
-	if err := p.Conn(); err != nill {
+	if err := p.Conn(); err != nil {
 		return false
 	}
 	sql := "delete from product where ID=?"
@@ -81,7 +81,7 @@ func (p *ProductManager) Delete(productID int64) bool {
 
 // update
 func (p *ProductManager) Update(product *datamodels.Product) error {
-	if err := p.Conn(); err != nill {
+	if err := p.Conn(); err != nil {
 		return err
 	}
 
@@ -106,6 +106,7 @@ func (p *ProductManager) SelectByKey(ProductID int64) (productResult *datamodels
 
 	sql := "Select * from " + p.table + " where ID = " + strconv.FormatInt(ProductID, 10)
 	row, errRow := p.mysqlConn.Query(sql)
+	defer row.Close()
 
 	if errRow != nil {
 		return &datamodels.Product{}, errRow
@@ -117,4 +118,30 @@ func (p *ProductManager) SelectByKey(ProductID int64) (productResult *datamodels
 
 	common.DataToStructByTagSql(result, productResult)
 	return
+}
+
+func (p *ProductManager) SelectAll() (prouductArray []*datamodels.Product, errorProduct error) {
+	if err := p.Conn(); err != nil {
+		return nil, err
+	}
+
+	sql := "Select * from " + p.table
+	rows, err := p.mysqlConn.Query(sql)
+	defer rows.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := common.GetResultRows(rows)
+	if len(result) == 0 {
+		return nil, nil
+	}
+	for _, v := range result {
+		product := &datamodels.Product{}
+		common.DataToStructByTagSql(v, product)
+		prouductArray = append(prouductArray, product)
+	}
+
+	return prouductArray, nil
 }
